@@ -286,6 +286,7 @@ class PackBrowserController: NSObject {
         if isInstalled {
             row.identifier = NSUserInterfaceItemIdentifier(id)
             let click = NSClickGestureRecognizer(target: self, action: #selector(previewPackSound(_:)))
+            click.delaysPrimaryMouseButtonEvents = false
             row.addGestureRecognizer(click)
         }
 
