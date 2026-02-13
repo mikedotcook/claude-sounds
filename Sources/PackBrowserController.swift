@@ -51,11 +51,27 @@ class PackBrowserController: NSObject {
         newPackBtn.controlSize = .small
         contentView.addSubview(newPackBtn)
 
+        let installURLBtn = NSButton(title: "Install URL...", target: self, action: #selector(installFromURL))
+        installURLBtn.translatesAutoresizingMaskIntoConstraints = false
+        installURLBtn.bezelStyle = .rounded
+        installURLBtn.controlSize = .small
+        contentView.addSubview(installURLBtn)
+
+        let installZIPBtn = NSButton(title: "Install ZIP...", target: self, action: #selector(installFromZip))
+        installZIPBtn.translatesAutoresizingMaskIntoConstraints = false
+        installZIPBtn.bezelStyle = .rounded
+        installZIPBtn.controlSize = .small
+        contentView.addSubview(installZIPBtn)
+
         NSLayoutConstraint.activate([
             refreshBtn.topAnchor.constraint(equalTo: contentView.topAnchor, constant: 10),
             refreshBtn.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -12),
             newPackBtn.topAnchor.constraint(equalTo: contentView.topAnchor, constant: 10),
             newPackBtn.trailingAnchor.constraint(equalTo: refreshBtn.leadingAnchor, constant: -8),
+            installURLBtn.topAnchor.constraint(equalTo: contentView.topAnchor, constant: 10),
+            installURLBtn.trailingAnchor.constraint(equalTo: newPackBtn.leadingAnchor, constant: -8),
+            installZIPBtn.topAnchor.constraint(equalTo: contentView.topAnchor, constant: 10),
+            installZIPBtn.trailingAnchor.constraint(equalTo: installURLBtn.leadingAnchor, constant: -8),
             scrollView.topAnchor.constraint(equalTo: refreshBtn.bottomAnchor, constant: 8),
             scrollView.leadingAnchor.constraint(equalTo: contentView.leadingAnchor),
             scrollView.trailingAnchor.constraint(equalTo: contentView.trailingAnchor),
@@ -83,7 +99,7 @@ class PackBrowserController: NSObject {
 
     @objc func refresh() {
         installedPacks = SoundPackManager.shared.installedPackIds()
-        SoundPackManager.shared.fetchManifest { [weak self] manifest in
+        SoundPackManager.shared.fetchManifestMerged { [weak self] manifest in
             self?.manifestPacks = manifest?.packs ?? []
             self?.rebuildUI()
         }
@@ -131,6 +147,31 @@ class PackBrowserController: NSObject {
                 )
             }
         }
+
+        // Registries section
+        let registryURLs = SoundPackManager.shared.customManifestURLs()
+        addSectionHeader("Registries")
+        if registryURLs.isEmpty {
+            addLabel("  No custom registries", color: .secondaryLabelColor)
+        } else {
+            for urlStr in registryURLs {
+                addRegistryRow(urlStr)
+            }
+        }
+        let manageBtn = NSButton(title: "Manage Registries...", target: self, action: #selector(openManageRegistries))
+        manageBtn.bezelStyle = .rounded
+        manageBtn.controlSize = .small
+        manageBtn.translatesAutoresizingMaskIntoConstraints = false
+        let btnWrapper = NSView()
+        btnWrapper.translatesAutoresizingMaskIntoConstraints = false
+        btnWrapper.addSubview(manageBtn)
+        NSLayoutConstraint.activate([
+            btnWrapper.heightAnchor.constraint(equalToConstant: 36),
+            manageBtn.leadingAnchor.constraint(equalTo: btnWrapper.leadingAnchor, constant: 16),
+            manageBtn.centerYAnchor.constraint(equalTo: btnWrapper.centerYAnchor),
+        ])
+        stackView.addArrangedSubview(btnWrapper)
+        btnWrapper.widthAnchor.constraint(equalTo: stackView.widthAnchor).isActive = true
 
         // Spacer
         let spacer = NSView()
@@ -341,5 +382,60 @@ class PackBrowserController: NSObject {
                 alert.runModal()
             }
         })
+    }
+
+    @objc func installFromURL() {
+        WindowManager.shared.showInstallURL { [weak self] in
+            self?.refresh()
+        }
+    }
+
+    @objc func installFromZip() {
+        let panel = NSOpenPanel()
+        panel.canChooseFiles = true
+        panel.canChooseDirectories = false
+        panel.allowsMultipleSelection = false
+        panel.allowedContentTypes = [.init(filenameExtension: "zip")!]
+
+        guard panel.runModal() == .OK, let url = panel.url else { return }
+
+        SoundPackManager.shared.installFromZip(at: url) { [weak self] success in
+            if success {
+                self?.refresh()
+            } else {
+                let alert = NSAlert()
+                alert.messageText = "Extraction Failed"
+                alert.informativeText = "Could not extract the ZIP file."
+                alert.runModal()
+            }
+        }
+    }
+
+    @objc func openManageRegistries() {
+        WindowManager.shared.showManageRegistries { [weak self] in
+            self?.refresh()
+        }
+    }
+
+    private func addRegistryRow(_ urlStr: String) {
+        let row = NSView()
+        row.translatesAutoresizingMaskIntoConstraints = false
+
+        let label = NSTextField(labelWithString: urlStr)
+        label.font = .systemFont(ofSize: 11)
+        label.textColor = .secondaryLabelColor
+        label.lineBreakMode = .byTruncatingMiddle
+        label.translatesAutoresizingMaskIntoConstraints = false
+        row.addSubview(label)
+
+        NSLayoutConstraint.activate([
+            row.heightAnchor.constraint(equalToConstant: 24),
+            label.leadingAnchor.constraint(equalTo: row.leadingAnchor, constant: 16),
+            label.trailingAnchor.constraint(lessThanOrEqualTo: row.trailingAnchor, constant: -16),
+            label.centerYAnchor.constraint(equalTo: row.centerYAnchor),
+        ])
+
+        stackView.addArrangedSubview(row)
+        row.widthAnchor.constraint(equalTo: stackView.widthAnchor).isActive = true
     }
 }

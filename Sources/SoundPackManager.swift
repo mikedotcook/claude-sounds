@@ -7,11 +7,13 @@ class SoundPackManager {
 
     let soundsDir: String
     let activePackFile: String
+    let customManifestsFile: String
     let manifestUrl = "https://raw.githubusercontent.com/michalarent/claude-sounds/main/sound-packs.json"
 
     private init() {
         soundsDir = (NSHomeDirectory() as NSString).appendingPathComponent(".claude/sounds")
         activePackFile = (soundsDir as NSString).appendingPathComponent(".active-pack")
+        customManifestsFile = (soundsDir as NSString).appendingPathComponent(".custom-manifests.json")
         // Ensure sounds directory exists
         try? FileManager.default.createDirectory(atPath: soundsDir, withIntermediateDirectories: true)
     }
@@ -151,6 +153,132 @@ class SoundPackManager {
                 setActivePack("protoss")
             } else if let first = installed.first {
                 setActivePack(first)
+            }
+        }
+    }
+
+    // MARK: - Install from URL
+
+    func installFromURL(_ urlString: String, progress: @escaping (Double) -> Void, completion: @escaping (Bool) -> Void) {
+        guard let url = URL(string: urlString) else {
+            DispatchQueue.main.async { completion(false) }
+            return
+        }
+
+        let delegate = DownloadDelegate(progress: progress) { [weak self] tempUrl in
+            guard let self = self, let tempUrl = tempUrl else {
+                DispatchQueue.main.async { completion(false) }
+                return
+            }
+            self.extractZip(at: tempUrl, completion: completion)
+        }
+
+        let session = URLSession(configuration: .default, delegate: delegate, delegateQueue: nil)
+        session.downloadTask(with: url).resume()
+    }
+
+    // MARK: - Install from local ZIP
+
+    func installFromZip(at fileURL: URL, completion: @escaping (Bool) -> Void) {
+        DispatchQueue.global(qos: .userInitiated).async { [weak self] in
+            guard let self = self else {
+                DispatchQueue.main.async { completion(false) }
+                return
+            }
+            let proc = Process()
+            proc.executableURL = URL(fileURLWithPath: "/usr/bin/unzip")
+            proc.arguments = ["-o", fileURL.path, "-d", self.soundsDir]
+            proc.standardOutput = FileHandle.nullDevice
+            proc.standardError = FileHandle.nullDevice
+            do {
+                try proc.run()
+                proc.waitUntilExit()
+                DispatchQueue.main.async { completion(proc.terminationStatus == 0) }
+            } catch {
+                DispatchQueue.main.async { completion(false) }
+            }
+        }
+    }
+
+    private func extractZip(at tempUrl: URL, completion: @escaping (Bool) -> Void) {
+        let proc = Process()
+        proc.executableURL = URL(fileURLWithPath: "/usr/bin/unzip")
+        proc.arguments = ["-o", tempUrl.path, "-d", self.soundsDir]
+        proc.standardOutput = FileHandle.nullDevice
+        proc.standardError = FileHandle.nullDevice
+        do {
+            try proc.run()
+            proc.waitUntilExit()
+            try? FileManager.default.removeItem(at: tempUrl)
+            DispatchQueue.main.async { completion(proc.terminationStatus == 0) }
+        } catch {
+            DispatchQueue.main.async { completion(false) }
+        }
+    }
+
+    // MARK: - Custom Manifest Registry
+
+    func customManifestURLs() -> [String] {
+        guard let data = FileManager.default.contents(atPath: customManifestsFile),
+              let urls = try? JSONDecoder().decode([String].self, from: data) else {
+            return []
+        }
+        return urls
+    }
+
+    private func saveCustomManifestURLs(_ urls: [String]) {
+        guard let data = try? JSONEncoder().encode(urls) else { return }
+        try? data.write(to: URL(fileURLWithPath: customManifestsFile))
+    }
+
+    func addCustomManifestURL(_ url: String) {
+        var urls = customManifestURLs()
+        let trimmed = url.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty, !urls.contains(trimmed) else { return }
+        urls.append(trimmed)
+        saveCustomManifestURLs(urls)
+    }
+
+    func removeCustomManifestURL(_ url: String) {
+        var urls = customManifestURLs()
+        urls.removeAll { $0 == url }
+        saveCustomManifestURLs(urls)
+    }
+
+    func fetchManifestMerged(completion: @escaping (SoundPackManifest?) -> Void) {
+        fetchManifest { [weak self] primary in
+            guard let self = self else {
+                completion(primary)
+                return
+            }
+            let customURLs = self.customManifestURLs()
+            guard !customURLs.isEmpty else {
+                completion(primary)
+                return
+            }
+
+            var allPacks = primary?.packs ?? []
+            let group = DispatchGroup()
+
+            for urlStr in customURLs {
+                guard let url = URL(string: urlStr) else { continue }
+                group.enter()
+                URLSession.shared.dataTask(with: url) { data, _, _ in
+                    if let data = data,
+                       let manifest = try? JSONDecoder().decode(SoundPackManifest.self, from: data) {
+                        DispatchQueue.main.async {
+                            let customIds = Set(manifest.packs.map { $0.id })
+                            allPacks.removeAll { customIds.contains($0.id) }
+                            allPacks.append(contentsOf: manifest.packs)
+                        }
+                    }
+                    group.leave()
+                }.resume()
+            }
+
+            group.notify(queue: .main) {
+                let merged = SoundPackManifest(version: primary?.version ?? "1", packs: allPacks)
+                completion(merged)
             }
         }
     }
