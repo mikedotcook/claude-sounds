@@ -5,12 +5,12 @@ import Cocoa
 class ImportedFile {
     let url: URL
     let filename: String
-    var assignedEvent: ClaudeEvent
+    var assignedEvent: ClaudeEvent?
 
-    init(url: URL, assignedEvent: ClaudeEvent = .sessionStart) {
+    init(url: URL) {
         self.url = url
         self.filename = url.lastPathComponent
-        self.assignedEvent = assignedEvent
+        self.assignedEvent = nil
     }
 }
 
@@ -50,6 +50,12 @@ class SoundImporterController: NSObject, NSTableViewDataSource, NSTableViewDeleg
         packPopup = NSPopUpButton(frame: .zero, pullsDown: false)
         packPopup.translatesAutoresizingMaskIntoConstraints = false
         contentView.addSubview(packPopup)
+
+        let newPackBtn = NSButton(title: "New Pack...", target: self, action: #selector(createNewPack))
+        newPackBtn.bezelStyle = .rounded
+        newPackBtn.controlSize = .small
+        newPackBtn.translatesAutoresizingMaskIntoConstraints = false
+        contentView.addSubview(newPackBtn)
 
         let addBtn = NSButton(title: "Add Files...", target: self, action: #selector(addFiles))
         addBtn.bezelStyle = .rounded
@@ -118,6 +124,8 @@ class SoundImporterController: NSObject, NSTableViewDataSource, NSTableViewDeleg
             packPopup.leadingAnchor.constraint(equalTo: packLabel.trailingAnchor, constant: 6),
             packPopup.centerYAnchor.constraint(equalTo: packLabel.centerYAnchor),
             packPopup.widthAnchor.constraint(greaterThanOrEqualToConstant: 150),
+            newPackBtn.leadingAnchor.constraint(equalTo: packPopup.trailingAnchor, constant: 8),
+            newPackBtn.centerYAnchor.constraint(equalTo: packLabel.centerYAnchor),
             addBtn.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -14),
             addBtn.centerYAnchor.constraint(equalTo: packLabel.centerYAnchor),
 
@@ -153,8 +161,13 @@ class SoundImporterController: NSObject, NSTableViewDataSource, NSTableViewDeleg
 
     private func updateUI() {
         let count = importedFiles.count
-        countLabel.stringValue = "\(count) file\(count == 1 ? "" : "s")"
-        importButton.isEnabled = count > 0 && packPopup.selectedItem != nil
+        let unassigned = importedFiles.filter { $0.assignedEvent == nil }.count
+        if unassigned > 0 {
+            countLabel.stringValue = "\(count) file\(count == 1 ? "" : "s") (\(unassigned) unassigned)"
+        } else {
+            countLabel.stringValue = "\(count) file\(count == 1 ? "" : "s")"
+        }
+        importButton.isEnabled = count > 0 && unassigned == 0 && packPopup.selectedItem != nil
     }
 
     private func addValidFiles(from urls: [URL]) {
@@ -168,6 +181,19 @@ class SoundImporterController: NSObject, NSTableViewDataSource, NSTableViewDeleg
     }
 
     // MARK: Actions
+
+    @objc func createNewPack() {
+        WindowManager.shared.showNewPack { [weak self] in
+            self?.reloadPacks()
+            // Select the newly created pack (last one added)
+            let installed = SoundPackManager.shared.installedPackIds()
+            if let last = installed.last,
+               let idx = installed.firstIndex(of: last) {
+                self?.packPopup.selectItem(at: idx)
+            }
+            self?.updateUI()
+        }
+    }
 
     @objc func addFiles() {
         let panel = NSOpenPanel()
@@ -195,8 +221,9 @@ class SoundImporterController: NSObject, NSTableViewDataSource, NSTableViewDeleg
         var copiedCount = 0
 
         for file in importedFiles {
+            guard let event = file.assignedEvent else { continue }
             let destDir = (SoundPackManager.shared.soundsDir as NSString)
-                .appendingPathComponent("\(packId)/\(file.assignedEvent.rawValue)")
+                .appendingPathComponent("\(packId)/\(event.rawValue)")
             try? fm.createDirectory(atPath: destDir, withIntermediateDirectories: true)
 
             let dest = (destDir as NSString).appendingPathComponent(file.filename)
@@ -224,9 +251,9 @@ class SoundImporterController: NSObject, NSTableViewDataSource, NSTableViewDeleg
     @objc func eventChanged(_ sender: NSPopUpButton) {
         let row = tableView.row(for: sender)
         guard row >= 0, row < importedFiles.count else { return }
-        if let event = ClaudeEvent.allCases.first(where: { $0.displayName == sender.titleOfSelectedItem }) {
-            importedFiles[row].assignedEvent = event
-        }
+        let selected = sender.titleOfSelectedItem ?? ""
+        importedFiles[row].assignedEvent = ClaudeEvent.allCases.first(where: { $0.displayName == selected })
+        updateUI()
     }
 
     @objc func playFile(_ sender: NSButton) {
@@ -297,11 +324,16 @@ class SoundImporterController: NSObject, NSTableViewDataSource, NSTableViewDeleg
 
         if colId == "event" {
             let popup = NSPopUpButton(frame: .zero, pullsDown: false)
+            popup.addItem(withTitle: "Select event...")
+            popup.item(at: 0)?.isEnabled = false
             for event in ClaudeEvent.allCases {
                 popup.addItem(withTitle: event.displayName)
             }
-            if let idx = ClaudeEvent.allCases.firstIndex(of: file.assignedEvent) {
-                popup.selectItem(at: idx)
+            if let assigned = file.assignedEvent,
+               let idx = ClaudeEvent.allCases.firstIndex(of: assigned) {
+                popup.selectItem(at: idx + 1) // +1 for placeholder
+            } else {
+                popup.selectItem(at: 0)
             }
             popup.target = self
             popup.action = #selector(eventChanged(_:))
