@@ -12,6 +12,7 @@ You can also install any pack directly via **Install URL...** using the zip link
 
 | Pack | Author | Description | Download |
 |------|--------|-------------|----------|
+| StarCraft Protoss | Blizzard Entertainment | Protoss voice lines from StarCraft | [protoss.zip](packs/protoss.zip) |
 | Super Mario Bros. (NES) | Community | Classic NES sound effects from Super Mario Bros. | [super-mario-nes.zip](packs/super-mario-nes.zip) |
 
 ## Contributing a pack

@@ -2,6 +2,17 @@
   "version": "1",
   "packs": [
     {
+      "id": "protoss",
+      "name": "StarCraft Protoss",
+      "description": "Protoss voice lines from StarCraft",
+      "version": "1.0",
+      "author": "Blizzard Entertainment",
+      "download_url": "https://raw.githubusercontent.com/michalarent/claude-sounds/main/community/packs/protoss.zip",
+      "size": "3.0 MB",
+      "file_count": 42,
+      "preview_url": null
+    },
+    {
       "id": "super-mario-nes",
       "name": "Super Mario Bros. (NES)",
       "description": "Classic NES sound effects from Super Mario Bros.",
