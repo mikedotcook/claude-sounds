@@ -257,27 +257,30 @@ class SoundPackManager {
             var allURLs = [self.communityManifestUrl]
             allURLs.append(contentsOf: self.customManifestURLs())
 
-            var allPacks = primary?.packs ?? []
+            let lock = NSLock()
+            var extraPacks: [SoundPackInfo] = []
             let group = DispatchGroup()
 
             for urlStr in allURLs {
                 guard let url = URL(string: urlStr) else { continue }
                 group.enter()
                 URLSession.shared.dataTask(with: url) { data, _, _ in
+                    defer { group.leave() }
                     if let data = data,
                        let manifest = try? JSONDecoder().decode(SoundPackManifest.self, from: data) {
-                        DispatchQueue.main.async {
-                            // Later manifests take precedence — remove dupes from earlier
-                            let newIds = Set(manifest.packs.map { $0.id })
-                            allPacks.removeAll { newIds.contains($0.id) }
-                            allPacks.append(contentsOf: manifest.packs)
-                        }
+                        lock.lock()
+                        extraPacks.append(contentsOf: manifest.packs)
+                        lock.unlock()
                     }
-                    group.leave()
                 }.resume()
             }
 
             group.notify(queue: .main) {
+                // Start with primary, then layer extras (later entries take precedence)
+                var allPacks = primary?.packs ?? []
+                let extraIds = Set(extraPacks.map { $0.id })
+                allPacks.removeAll { extraIds.contains($0.id) }
+                allPacks.append(contentsOf: extraPacks)
                 let merged = SoundPackManifest(version: primary?.version ?? "1", packs: allPacks)
                 completion(merged)
             }
