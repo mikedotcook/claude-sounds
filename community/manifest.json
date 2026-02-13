@@ -44,6 +44,17 @@
       "size": "1.4 MB",
       "file_count": 22,
       "preview_url": null
+    },
+    {
+      "id": "diablo-2-paladin",
+      "name": "Diablo II Paladin",
+      "description": "Paladin voice lines from Diablo II: Lord of Destruction",
+      "version": "1.0",
+      "author": "Community",
+      "download_url": "https://github.com/michalarent/claude-sounds/releases/download/v2.0/diablo-2-paladin.zip",
+      "size": "3.0 MB",
+      "file_count": 38,
+      "preview_url": null
     }
   ]
 }
