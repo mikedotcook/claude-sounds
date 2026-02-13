@@ -74,13 +74,21 @@ class PublishPackController: NSObject {
             fieldViews.append((lbl, field))
         }
 
-        // Pre-fill from manifest if available
+        // Pre-fill from local metadata first, then remote manifest as fallback
+        let localMeta = SoundPackManager.shared.loadPackMetadata(id: packId)
+        if let meta = localMeta {
+            if let n = meta["name"], !n.isEmpty { nameField.stringValue = n }
+            if let d = meta["description"], !d.isEmpty { descField.stringValue = d }
+            if let a = meta["author"], !a.isEmpty { authorField.stringValue = a }
+            if let v = meta["version"], !v.isEmpty { versionField.stringValue = v }
+        }
         SoundPackManager.shared.fetchManifestMerged { [weak self] manifest in
             guard let self = self, let info = manifest?.packs.first(where: { $0.id == packId }) else { return }
-            self.nameField.stringValue = info.name
-            self.descField.stringValue = info.description
-            self.authorField.stringValue = info.author
-            self.versionField.stringValue = info.version
+            // Only fill fields that are still at their placeholder defaults
+            if self.nameField.stringValue == self.titleCase(packId) { self.nameField.stringValue = info.name }
+            if self.descField.stringValue.isEmpty { self.descField.stringValue = info.description }
+            if self.authorField.stringValue.isEmpty { self.authorField.stringValue = info.author }
+            if self.versionField.stringValue == "1.0" { self.versionField.stringValue = info.version }
         }
 
         // Stats
@@ -268,6 +276,16 @@ class PublishPackController: NSObject {
             // 5. Create branch
             _ = self.shell("/usr/bin/git", ["-C", tmpClone.path, "checkout", "-b", branch])
 
+            // 5b. Upload ZIP to v2.0 release
+            self.updateStatus("Uploading ZIP to release...")
+            let uploadResult = self.shell("/usr/bin/env", [
+                "gh", "release", "upload", "v2.0", tmpZip.path,
+                "--repo", "michalarent/claude-sounds", "--clobber"
+            ])
+            if uploadResult.contains("error") || uploadResult.contains("release not found") {
+                self.updateStatus("Failed to upload ZIP to release. You may need to upload manually.", error: true)
+            }
+
             self.updateStatus("Updating manifest...")
 
             // 6. Read and update manifest
@@ -281,13 +299,15 @@ class PublishPackController: NSObject {
             // Remove existing entry for this pack ID if present
             var packs = manifest.packs.filter { $0.id != self.packId }
 
+            let downloadUrl = "https://github.com/michalarent/claude-sounds/releases/download/v2.0/\(self.packId).zip"
+
             let newEntry = SoundPackInfo(
                 id: self.packId,
                 name: name,
-                description: desc.isEmpty ? "Community sound pack" : desc,
+                description: desc,
                 version: version.isEmpty ? "1.0" : version,
                 author: author.isEmpty ? whoami : author,
-                downloadUrl: "PLACEHOLDER_URL",
+                downloadUrl: downloadUrl,
                 size: sizeStr,
                 fileCount: stats.fileCount,
                 previewUrl: nil
@@ -314,8 +334,8 @@ class PublishPackController: NSObject {
             let prBody = "Adds **\(name)** community sound pack (`\(self.packId)`).\n\n"
                 + "- \(stats.fileCount) audio files, \(sizeStr)\n"
                 + "- Author: \(author.isEmpty ? whoami : author)\n\n"
-                + "**Note:** The `download_url` is set to a placeholder. "
-                + "Please upload `\(self.packId).zip` to a public host and update the URL before merging."
+                + "**Before merging:** upload the ZIP to the v2.0 release:\n"
+                + "```\ngh release upload v2.0 /path/to/\(self.packId).zip --clobber\n```"
 
             let prResult = self.shell("/usr/bin/env", [
                 "gh", "pr", "create",
