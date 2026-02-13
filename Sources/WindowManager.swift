@@ -107,6 +107,23 @@ class WindowManager {
         NSApp.activate(ignoringOtherApps: true)
     }
 
+    private var soundImporterWindow: NSWindow?
+    private var soundImporterController: SoundImporterController?
+
+    func showSoundImporter(onImported: (() -> Void)? = nil) {
+        if let w = soundImporterWindow, w.isVisible {
+            w.makeKeyAndOrderFront(nil)
+            NSApp.activate(ignoringOtherApps: true)
+            return
+        }
+        let ctrl = SoundImporterController(onImported: onImported)
+        let w = ctrl.window
+        soundImporterWindow = w
+        soundImporterController = ctrl
+        w.makeKeyAndOrderFront(nil)
+        NSApp.activate(ignoringOtherApps: true)
+    }
+
     func showManageRegistries(onChanged: (() -> Void)? = nil) {
         if let w = manageRegistriesWindow, w.isVisible {
             w.makeKeyAndOrderFront(nil)

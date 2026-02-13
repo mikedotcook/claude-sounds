@@ -31,6 +31,10 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         updateIcon()
         setupMenu()
         checkFirstLaunch()
+
+        DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
+            AppUpdater.shared.checkForUpdateSilent()
+        }
     }
 
     private func checkFirstLaunch() {
@@ -111,6 +115,10 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         editorItem.target = self
         menu.addItem(editorItem)
 
+        let importItem = NSMenuItem(title: "Import Sounds...", action: #selector(openSoundImporter), keyEquivalent: "")
+        importItem.target = self
+        menu.addItem(importItem)
+
         if !HookInstaller.shared.isHookInstalled() {
             setupHookMenuItem = NSMenuItem(title: "Setup Hook...", action: #selector(openSetupWizard), keyEquivalent: "")
             setupHookMenuItem.target = self
@@ -127,9 +135,18 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             menu.addItem(.separator())
         }
 
+        let updateItem = NSMenuItem(title: "Check for Updates...", action: #selector(checkForUpdates), keyEquivalent: "")
+        updateItem.target = self
+        menu.addItem(updateItem)
+        menu.addItem(.separator())
+
         let quitItem = NSMenuItem(title: "Quit", action: #selector(quitApp), keyEquivalent: "q")
         quitItem.target = self
         menu.addItem(quitItem)
+    }
+
+    @objc func checkForUpdates() {
+        AppUpdater.shared.checkForUpdateInteractive()
     }
 
     @objc func openPackBrowser() {
@@ -138,6 +155,10 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
     @objc func openEventEditor() {
         WindowManager.shared.showEventEditor()
+    }
+
+    @objc func openSoundImporter() {
+        WindowManager.shared.showSoundImporter()
     }
 
     @objc func openSetupWizard() {
