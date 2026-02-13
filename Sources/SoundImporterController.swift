@@ -1,16 +1,40 @@
 import Cocoa
+import AVFoundation
 
 // MARK: - Sound Importer
 
 class ImportedFile {
     let url: URL
     let filename: String
+    let duration: String
+    let durationSeconds: Double
     var assignedEvent: ClaudeEvent?
 
     init(url: URL) {
         self.url = url
         self.filename = url.lastPathComponent
         self.assignedEvent = nil
+
+        let seconds: Double
+        if let player = try? AVAudioPlayer(contentsOf: url) {
+            seconds = player.duration
+        } else {
+            seconds = 0
+        }
+        if seconds.isFinite && seconds > 0 {
+            self.durationSeconds = seconds
+            let mins = Int(seconds) / 60
+            let secs = Int(seconds) % 60
+            let ms = Int((seconds - Double(Int(seconds))) * 10)
+            if mins > 0 {
+                self.duration = String(format: "%d:%02d.%d", mins, secs, ms)
+            } else {
+                self.duration = String(format: "%d.%ds", secs, ms)
+            }
+        } else {
+            self.durationSeconds = 0
+            self.duration = "—"
+        }
     }
 }
 
@@ -78,14 +102,24 @@ class SoundImporterController: NSObject, NSTableViewDataSource, NSTableViewDeleg
 
         let fileCol = NSTableColumn(identifier: NSUserInterfaceItemIdentifier("file"))
         fileCol.title = "File"
-        fileCol.minWidth = 150
-        fileCol.width = 220
+        fileCol.minWidth = 120
+        fileCol.width = 180
+        fileCol.sortDescriptorPrototype = NSSortDescriptor(key: "file", ascending: true)
         tableView.addTableColumn(fileCol)
+
+        let durationCol = NSTableColumn(identifier: NSUserInterfaceItemIdentifier("duration"))
+        durationCol.title = "Duration"
+        durationCol.minWidth = 55
+        durationCol.width = 65
+        durationCol.maxWidth = 80
+        durationCol.sortDescriptorPrototype = NSSortDescriptor(key: "duration", ascending: true)
+        tableView.addTableColumn(durationCol)
 
         let eventCol = NSTableColumn(identifier: NSUserInterfaceItemIdentifier("event"))
         eventCol.title = "Event"
         eventCol.minWidth = 130
-        eventCol.width = 180
+        eventCol.width = 170
+        eventCol.sortDescriptorPrototype = NSSortDescriptor(key: "event", ascending: true)
         tableView.addTableColumn(eventCol)
 
         let actionsCol = NSTableColumn(identifier: NSUserInterfaceItemIdentifier("actions"))
@@ -323,6 +357,30 @@ class SoundImporterController: NSObject, NSTableViewDataSource, NSTableViewDeleg
         return true
     }
 
+    func tableView(_ tableView: NSTableView, sortDescriptorsDidChange oldDescriptors: [NSSortDescriptor]) {
+        guard let descriptor = tableView.sortDescriptors.first,
+              let key = descriptor.key else { return }
+        let ascending = descriptor.ascending
+        importedFiles.sort { a, b in
+            let result: ComparisonResult
+            switch key {
+            case "file":
+                result = a.filename.localizedCaseInsensitiveCompare(b.filename)
+            case "duration":
+                result = a.durationSeconds < b.durationSeconds ? .orderedAscending :
+                         a.durationSeconds > b.durationSeconds ? .orderedDescending : .orderedSame
+            case "event":
+                let aName = a.assignedEvent?.displayName ?? ""
+                let bName = b.assignedEvent?.displayName ?? ""
+                result = aName.localizedCaseInsensitiveCompare(bName)
+            default:
+                result = .orderedSame
+            }
+            return ascending ? result == .orderedAscending : result == .orderedDescending
+        }
+        tableView.reloadData()
+    }
+
     // MARK: NSTableViewDelegate
 
     func tableView(_ tableView: NSTableView, viewFor tableColumn: NSTableColumn?, row: Int) -> NSView? {
@@ -334,6 +392,14 @@ class SoundImporterController: NSObject, NSTableViewDataSource, NSTableViewDeleg
             let cell = NSTextField(labelWithString: file.filename)
             cell.font = .systemFont(ofSize: 12)
             cell.lineBreakMode = .byTruncatingMiddle
+            return cell
+        }
+
+        if colId == "duration" {
+            let cell = NSTextField(labelWithString: file.duration)
+            cell.font = .monospacedDigitSystemFont(ofSize: 11, weight: .regular)
+            cell.textColor = .secondaryLabelColor
+            cell.alignment = .right
             return cell
         }
 
