@@ -228,6 +228,66 @@ class SoundPackManager {
         }
     }
 
+    // MARK: - Pack Stats & Export
+
+    func packStats(id: String) -> (fileCount: Int, totalSize: UInt64) {
+        let fm = FileManager.default
+        let packDir = (soundsDir as NSString).appendingPathComponent(id)
+        var fileCount = 0
+        var totalSize: UInt64 = 0
+        let exts = AudioValidator.allowedExtensions
+
+        for event in ClaudeEvent.allCases {
+            let eventDir = (packDir as NSString).appendingPathComponent(event.rawValue)
+            guard let files = try? fm.contentsOfDirectory(atPath: eventDir) else { continue }
+            for file in files {
+                let ext = (file as NSString).pathExtension.lowercased()
+                guard exts.contains(ext) else { continue }
+                let path = (eventDir as NSString).appendingPathComponent(file)
+                if let attrs = try? fm.attributesOfItem(atPath: path),
+                   let size = attrs[.size] as? UInt64 {
+                    fileCount += 1
+                    totalSize += size
+                }
+            }
+        }
+        return (fileCount, totalSize)
+    }
+
+    func exportPackAsZip(id: String, to destination: URL, completion: @escaping (Bool) -> Void) {
+        DispatchQueue.global(qos: .userInitiated).async { [weak self] in
+            guard let self = self else {
+                DispatchQueue.main.async { completion(false) }
+                return
+            }
+            let packDir = (self.soundsDir as NSString).appendingPathComponent(id)
+            var isDir: ObjCBool = false
+            guard FileManager.default.fileExists(atPath: packDir, isDirectory: &isDir),
+                  isDir.boolValue else {
+                DispatchQueue.main.async { completion(false) }
+                return
+            }
+
+            // Remove destination if it already exists
+            try? FileManager.default.removeItem(at: destination)
+
+            let proc = Process()
+            proc.executableURL = URL(fileURLWithPath: "/usr/bin/zip")
+            proc.arguments = ["-r", destination.path, id]
+            proc.currentDirectoryURL = URL(fileURLWithPath: self.soundsDir)
+            proc.standardOutput = FileHandle.nullDevice
+            proc.standardError = FileHandle.nullDevice
+
+            do {
+                try proc.run()
+                proc.waitUntilExit()
+                DispatchQueue.main.async { completion(proc.terminationStatus == 0) }
+            } catch {
+                DispatchQueue.main.async { completion(false) }
+            }
+        }
+    }
+
     // MARK: - Custom Manifest Registry
 
     func customManifestURLs() -> [String] {

@@ -281,10 +281,16 @@ class PackBrowserController: NSObject {
                 ])
             }
 
+            let publishBtn = createButton("Publish", id: id, action: #selector(publishPack(_:)))
+            publishBtn.translatesAutoresizingMaskIntoConstraints = false
+            row.addSubview(publishBtn)
+
             let uninstallBtn = createButton("Uninstall", id: id, action: #selector(uninstallPack(_:)))
             uninstallBtn.translatesAutoresizingMaskIntoConstraints = false
             row.addSubview(uninstallBtn)
             NSLayoutConstraint.activate([
+                publishBtn.trailingAnchor.constraint(equalTo: uninstallBtn.leadingAnchor, constant: -8),
+                publishBtn.bottomAnchor.constraint(equalTo: row.bottomAnchor, constant: -10),
                 uninstallBtn.trailingAnchor.constraint(equalTo: row.trailingAnchor, constant: -16),
                 uninstallBtn.bottomAnchor.constraint(equalTo: row.bottomAnchor, constant: -10),
             ])
@@ -335,6 +341,13 @@ class PackBrowserController: NSObject {
         btn.controlSize = .small
         btn.identifier = NSUserInterfaceItemIdentifier(id)
         return btn
+    }
+
+    @objc func publishPack(_ sender: NSButton) {
+        guard let id = sender.identifier?.rawValue else { return }
+        WindowManager.shared.showPublishPack(packId: id) { [weak self] in
+            self?.refresh()
+        }
     }
 
     @objc func activatePack(_ sender: NSButton) {

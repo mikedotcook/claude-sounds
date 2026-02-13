@@ -90,6 +90,23 @@ class WindowManager {
         NSApp.activate(ignoringOtherApps: true)
     }
 
+    private var publishPackWindow: NSWindow?
+    private var publishPackController: PublishPackController?
+
+    func showPublishPack(packId: String, onPublished: (() -> Void)? = nil) {
+        if let w = publishPackWindow, w.isVisible {
+            w.makeKeyAndOrderFront(nil)
+            NSApp.activate(ignoringOtherApps: true)
+            return
+        }
+        let ctrl = PublishPackController(packId: packId, onPublished: onPublished)
+        let w = ctrl.window
+        publishPackWindow = w
+        publishPackController = ctrl
+        w.makeKeyAndOrderFront(nil)
+        NSApp.activate(ignoringOtherApps: true)
+    }
+
     func showManageRegistries(onChanged: (() -> Void)? = nil) {
         if let w = manageRegistriesWindow, w.isVisible {
             w.makeKeyAndOrderFront(nil)

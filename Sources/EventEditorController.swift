@@ -37,6 +37,12 @@ class EventEditorController: NSObject, NSOutlineViewDataSource, NSOutlineViewDel
         packPopup.action = #selector(packChanged(_:))
         contentView.addSubview(packPopup)
 
+        let publishBtn = NSButton(title: "Publish...", target: self, action: #selector(publishPack))
+        publishBtn.translatesAutoresizingMaskIntoConstraints = false
+        publishBtn.bezelStyle = .rounded
+        publishBtn.controlSize = .small
+        contentView.addSubview(publishBtn)
+
         // Outline view
         let scrollView = NSScrollView()
         scrollView.hasVerticalScroller = true
@@ -84,6 +90,8 @@ class EventEditorController: NSObject, NSOutlineViewDataSource, NSOutlineViewDel
             packPopup.leadingAnchor.constraint(equalTo: packLabel.trailingAnchor, constant: 6),
             packPopup.centerYAnchor.constraint(equalTo: packLabel.centerYAnchor),
             packPopup.widthAnchor.constraint(greaterThanOrEqualToConstant: 150),
+            publishBtn.leadingAnchor.constraint(equalTo: packPopup.trailingAnchor, constant: 8),
+            publishBtn.centerYAnchor.constraint(equalTo: packLabel.centerYAnchor),
             scrollView.topAnchor.constraint(equalTo: packLabel.bottomAnchor, constant: 10),
             scrollView.leadingAnchor.constraint(equalTo: contentView.leadingAnchor),
             scrollView.trailingAnchor.constraint(equalTo: contentView.trailingAnchor),
@@ -122,6 +130,11 @@ class EventEditorController: NSObject, NSOutlineViewDataSource, NSOutlineViewDel
         for item in eventItems {
             outlineView.expandItem(item)
         }
+    }
+
+    @objc func publishPack() {
+        guard !currentPackId.isEmpty else { return }
+        WindowManager.shared.showPublishPack(packId: currentPackId)
     }
 
     @objc func packChanged(_ sender: NSPopUpButton) {
