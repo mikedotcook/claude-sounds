@@ -255,6 +255,7 @@ class AppUpdater {
             while kill -0 \(pid) 2>/dev/null; do sleep 0.2; done
             rm -rf "\(currentBundlePath)"
             mv "\(extractedAppPath)" "\(currentBundlePath)"
+            xattr -cr "\(currentBundlePath)"
             rm -rf "\(extractDir.path)"
             open "\(currentBundlePath)"
             rm -f "\(scriptPath)"

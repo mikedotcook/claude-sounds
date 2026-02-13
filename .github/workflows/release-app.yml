@@ -37,7 +37,9 @@ jobs:
           /usr/libexec/PlistBuddy -c "Print :CFBundleShortVersionString" ClaudeSounds.app/Contents/Info.plist
 
       - name: Create ZIP
-        run: zip -r ClaudeSounds.app.zip ClaudeSounds.app
+        run: |
+          xattr -cr ClaudeSounds.app
+          zip -r ClaudeSounds.app.zip ClaudeSounds.app
 
       - name: Create GitHub Release
         env:
