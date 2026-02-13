@@ -369,6 +369,11 @@ class PackBrowserController: NSObject {
                 bottomButtons.append(publishBtn)
             }
 
+            let finderBtn = createButton("View in Finder", id: id, action: #selector(viewInFinder(_:)))
+            finderBtn.translatesAutoresizingMaskIntoConstraints = false
+            row.addSubview(finderBtn)
+            bottomButtons.append(finderBtn)
+
             let uninstallBtn = createButton("Uninstall", id: id, action: #selector(uninstallPack(_:)))
             uninstallBtn.translatesAutoresizingMaskIntoConstraints = false
             row.addSubview(uninstallBtn)
@@ -453,6 +458,12 @@ class PackBrowserController: NSObject {
         proc.standardError = FileHandle.nullDevice
         try? proc.run()
         previewProcess = proc
+    }
+
+    @objc func viewInFinder(_ sender: NSButton) {
+        guard let id = sender.identifier?.rawValue else { return }
+        let path = (SoundPackManager.shared.soundsDir as NSString).appendingPathComponent(id)
+        NSWorkspace.shared.selectFile(nil, inFileViewerRootedAtPath: path)
     }
 
     @objc func editPack(_ sender: NSButton) {
