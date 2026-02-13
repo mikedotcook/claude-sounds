@@ -55,6 +55,17 @@
       "size": "3.0 MB",
       "file_count": 38,
       "preview_url": null
+    },
+    {
+      "id": "dark-souls",
+      "name": "Dark Souls",
+      "description": "Iconic sound effects from Dark Souls — bonfires, parries, YOU DIED, and more",
+      "version": "1.0",
+      "author": "Community",
+      "download_url": "https://github.com/rottensunday/claude-sounds/releases/download/dark-souls-v1.0/dark-souls.zip",
+      "size": "5.1 MB",
+      "file_count": 17,
+      "preview_url": null
     }
   ]
 }

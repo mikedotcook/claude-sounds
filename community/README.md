@@ -16,6 +16,7 @@ You can also install any pack directly via **Install URL...** using the zip link
 | Super Mario Bros. (NES) | Community | Classic NES sound effects from Super Mario Bros. | [super-mario-nes.zip](https://github.com/michalarent/claude-sounds/releases/download/v2.0/super-mario-nes.zip) |
 | Diablo II Necromancer | Community | Necromancer voice lines and spell sounds from Diablo II | [diablo-2-necromancer.zip](https://github.com/michalarent/claude-sounds/releases/download/v2.0/diablo-2-necromancer.zip) |
 | Cuphead Announcer | Community | Announcer voice lines from Cuphead: Don't Deal With the Devil! | [cuphead-announcer.zip](https://github.com/michalarent/claude-sounds/releases/download/v2.0/cuphead-announcer.zip) |
+| Dark Souls | Community | Iconic sounds — bonfires, parries, YOU DIED, and more | [dark-souls.zip](https://github.com/rottensunday/claude-sounds/releases/download/dark-souls-v1.0/dark-souls.zip) |
 
 ## Contributing a pack
 
