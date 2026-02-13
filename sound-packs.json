@@ -1,0 +1,15 @@
+{
+  "version": "1",
+  "packs": [
+    {
+      "id": "protoss",
+      "name": "StarCraft Protoss",
+      "description": "Protoss voice lines from StarCraft",
+      "version": "1.0",
+      "author": "Blizzard Entertainment",
+      "downloadUrl": "https://github.com/michalarent/claude-sounds/releases/download/v2.0/protoss.zip",
+      "size": "2.1 MB",
+      "fileCount": 42
+    }
+  ]
+}
