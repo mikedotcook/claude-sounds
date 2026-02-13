@@ -12,6 +12,7 @@ class PackBrowserController: NSObject {
     private var downloadButtons: [String: NSButton] = [:]
     private var updateProgress: [String: NSProgressIndicator] = [:]
     private var updateButtons: [String: NSButton] = [:]
+    private var previewProcess: Process?
 
     override init() {
         window = NSWindow(
@@ -343,19 +344,36 @@ class PackBrowserController: NSObject {
                 ])
             }
 
-            let publishBtn = createButton("Publish", id: id, action: #selector(publishPack(_:)))
-            publishBtn.translatesAutoresizingMaskIntoConstraints = false
-            row.addSubview(publishBtn)
+            // Bottom-right buttons: Preview, (Publish if local-only), Uninstall
+            var bottomButtons: [NSButton] = []
+
+            let previewBtn = createButton("Preview", id: id, action: #selector(previewPack(_:)))
+            previewBtn.translatesAutoresizingMaskIntoConstraints = false
+            row.addSubview(previewBtn)
+            bottomButtons.append(previewBtn)
+
+            let isLocalOnly = !manifestPacks.contains(where: { $0.id == id })
+            if isLocalOnly {
+                let publishBtn = createButton("Publish", id: id, action: #selector(publishPack(_:)))
+                publishBtn.translatesAutoresizingMaskIntoConstraints = false
+                row.addSubview(publishBtn)
+                bottomButtons.append(publishBtn)
+            }
 
             let uninstallBtn = createButton("Uninstall", id: id, action: #selector(uninstallPack(_:)))
             uninstallBtn.translatesAutoresizingMaskIntoConstraints = false
             row.addSubview(uninstallBtn)
-            NSLayoutConstraint.activate([
-                publishBtn.trailingAnchor.constraint(equalTo: uninstallBtn.leadingAnchor, constant: -8),
-                publishBtn.bottomAnchor.constraint(equalTo: row.bottomAnchor, constant: -10),
-                uninstallBtn.trailingAnchor.constraint(equalTo: row.trailingAnchor, constant: -16),
-                uninstallBtn.bottomAnchor.constraint(equalTo: row.bottomAnchor, constant: -10),
-            ])
+            bottomButtons.append(uninstallBtn)
+
+            // Layout bottom buttons right-aligned
+            var trailingRef = row.trailingAnchor
+            for btn in bottomButtons.reversed() {
+                NSLayoutConstraint.activate([
+                    btn.trailingAnchor.constraint(equalTo: trailingRef, constant: trailingRef === row.trailingAnchor ? -16 : -8),
+                    btn.bottomAnchor.constraint(equalTo: row.bottomAnchor, constant: -10),
+                ])
+                trailingRef = btn.leadingAnchor
+            }
         } else {
             let dlBtn = createButton("Download & Install", id: id, action: #selector(downloadPack(_:)))
             dlBtn.translatesAutoresizingMaskIntoConstraints = false
@@ -403,6 +421,29 @@ class PackBrowserController: NSObject {
         btn.controlSize = .small
         btn.identifier = NSUserInterfaceItemIdentifier(id)
         return btn
+    }
+
+    @objc func previewPack(_ sender: NSButton) {
+        guard let id = sender.identifier?.rawValue else { return }
+        if let proc = previewProcess, proc.isRunning { proc.terminate() }
+
+        let allFiles = ClaudeEvent.allCases.flatMap {
+            SoundPackManager.shared.allSoundFiles(forEvent: $0, inPack: id)
+        }.filter { !$0.hasSuffix(".disabled") }
+        guard !allFiles.isEmpty else { return }
+        let file = allFiles[Int.random(in: 0..<allFiles.count)]
+
+        let volumeFile = (NSHomeDirectory() as NSString).appendingPathComponent(".claude/sounds/.volume")
+        let vol = (try? String(contentsOfFile: volumeFile, encoding: .utf8))?
+            .trimmingCharacters(in: .whitespacesAndNewlines) ?? "0.50"
+
+        let proc = Process()
+        proc.executableURL = URL(fileURLWithPath: "/usr/bin/afplay")
+        proc.arguments = ["-v", vol, file]
+        proc.standardOutput = FileHandle.nullDevice
+        proc.standardError = FileHandle.nullDevice
+        try? proc.run()
+        previewProcess = proc
     }
 
     @objc func publishPack(_ sender: NSButton) {
