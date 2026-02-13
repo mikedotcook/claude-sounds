@@ -24,6 +24,17 @@
       "preview_url": null
     },
     {
+      "id": "diablo-2-necromancer",
+      "name": "Diablo II Necromancer",
+      "description": "Necromancer voice lines and spell sounds from Diablo II",
+      "version": "1.0",
+      "author": "Community",
+      "download_url": "https://github.com/michalarent/claude-sounds/releases/download/v2.0/diablo-2-necromancer.zip",
+      "size": "1.8 MB",
+      "file_count": 30,
+      "preview_url": null
+    },
+    {
       "id": "cuphead-announcer",
       "name": "Cuphead Announcer",
       "description": "Announcer voice lines from Cuphead: Don't Deal With the Devil!",
