@@ -33,12 +33,12 @@ Supports `.wav`, `.mp3`, `.aiff`, `.m4a`, `.ogg`, and `.aac` files.
 
 ```bash
 # Compile
-swiftc -o ClaudeSounds -framework Cocoa ClaudeSounds.swift
+swiftc -o ClaudeSounds -framework Cocoa Sources/*.swift
 
 # Or build directly into an app bundle
 mkdir -p ClaudeSounds.app/Contents/MacOS
 cp Info.plist ClaudeSounds.app/Contents/
-swiftc -o ClaudeSounds.app/Contents/MacOS/ClaudeMuteToggle -framework Cocoa ClaudeSounds.swift
+swiftc -o ClaudeSounds.app/Contents/MacOS/ClaudeMuteToggle -framework Cocoa Sources/*.swift
 
 # Launch
 open ClaudeSounds.app
