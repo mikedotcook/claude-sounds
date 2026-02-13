@@ -40,6 +40,14 @@ class PackBrowserController: NSObject {
         let contentView = window.contentView!
         contentView.addSubview(scrollView)
 
+        // Version label
+        let version = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "0.0"
+        let versionLabel = NSTextField(labelWithString: "Claude Sounds v\(version)")
+        versionLabel.font = .systemFont(ofSize: 12, weight: .medium)
+        versionLabel.textColor = .secondaryLabelColor
+        versionLabel.translatesAutoresizingMaskIntoConstraints = false
+        contentView.addSubview(versionLabel)
+
         // Toolbar buttons
         let refreshBtn = NSButton(title: "Refresh", target: self, action: #selector(refresh))
         refreshBtn.translatesAutoresizingMaskIntoConstraints = false
@@ -66,6 +74,8 @@ class PackBrowserController: NSObject {
         contentView.addSubview(installZIPBtn)
 
         NSLayoutConstraint.activate([
+            versionLabel.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 14),
+            versionLabel.centerYAnchor.constraint(equalTo: refreshBtn.centerYAnchor),
             refreshBtn.topAnchor.constraint(equalTo: contentView.topAnchor, constant: 10),
             refreshBtn.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -12),
             newPackBtn.topAnchor.constraint(equalTo: contentView.topAnchor, constant: 10),
