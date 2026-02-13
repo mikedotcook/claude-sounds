@@ -100,7 +100,12 @@ class SoundPackManager {
                 DispatchQueue.main.async { completion(false) }
                 return
             }
-            self.extractZip(at: tempUrl, completion: completion)
+            self.extractZip(at: tempUrl) { success in
+                if success {
+                    self.savePackMetadata(id: pack.id, version: pack.version)
+                }
+                completion(success)
+            }
         }
 
         let session = URLSession(configuration: .default, delegate: delegate, delegateQueue: nil)
@@ -139,6 +144,25 @@ class SoundPackManager {
                 setActivePack(first)
             }
         }
+    }
+
+    // MARK: - Pack Version Tracking
+
+    func savePackMetadata(id: String, version: String) {
+        let packDir = (soundsDir as NSString).appendingPathComponent(id)
+        let metaPath = (packDir as NSString).appendingPathComponent(".pack-info.json")
+        let json: [String: String] = ["version": version]
+        guard let data = try? JSONSerialization.data(withJSONObject: json) else { return }
+        try? data.write(to: URL(fileURLWithPath: metaPath))
+    }
+
+    func installedPackVersion(id: String) -> String? {
+        let metaPath = (soundsDir as NSString).appendingPathComponent("\(id)/.pack-info.json")
+        guard let data = FileManager.default.contents(atPath: metaPath),
+              let json = try? JSONSerialization.jsonObject(with: data) as? [String: String] else {
+            return nil
+        }
+        return json["version"]
     }
 
     // MARK: - Install from URL

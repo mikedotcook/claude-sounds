@@ -10,6 +10,8 @@ class PackBrowserController: NSObject {
     private var manifestPacks: [SoundPackInfo] = []
     private var downloadProgress: [String: NSProgressIndicator] = [:]
     private var downloadButtons: [String: NSButton] = [:]
+    private var updateProgress: [String: NSProgressIndicator] = [:]
+    private var updateButtons: [String: NSButton] = [:]
     private var previewProcess: Process?
 
     override init() {
@@ -110,6 +112,8 @@ class PackBrowserController: NSObject {
         stackView.arrangedSubviews.forEach { $0.removeFromSuperview() }
         downloadProgress.removeAll()
         downloadButtons.removeAll()
+        updateProgress.removeAll()
+        updateButtons.removeAll()
 
         let activePack = SoundPackManager.shared.activePackId()
 
@@ -120,13 +124,21 @@ class PackBrowserController: NSObject {
         } else {
             for packId in installedPacks {
                 let info = manifestPacks.first { $0.id == packId }
+                let localVersion = SoundPackManager.shared.installedPackVersion(id: packId)
+                let updateAvailable: Bool = {
+                    guard let local = localVersion, let manifest = info?.version else { return false }
+                    return local != manifest
+                }()
                 addPackRow(
                     id: packId,
                     name: info?.name ?? packId.capitalized,
                     description: info?.description ?? "Locally installed",
-                    version: info?.version ?? "—",
+                    version: localVersion ?? info?.version ?? "—",
                     isInstalled: true,
-                    isActive: packId == activePack
+                    isActive: packId == activePack,
+                    packInfo: info,
+                    updateAvailable: updateAvailable,
+                    manifestVersion: info?.version
                 )
             }
         }
@@ -227,7 +239,9 @@ class PackBrowserController: NSObject {
 
     private func addPackRow(id: String, name: String, description: String,
                             version: String, isInstalled: Bool, isActive: Bool,
-                            packInfo: SoundPackInfo? = nil) {
+                            packInfo: SoundPackInfo? = nil,
+                            updateAvailable: Bool = false,
+                            manifestVersion: String? = nil) {
         let row = NSView()
         row.translatesAutoresizingMaskIntoConstraints = false
 
@@ -242,9 +256,18 @@ class PackBrowserController: NSObject {
         descLabel.translatesAutoresizingMaskIntoConstraints = false
         row.addSubview(descLabel)
 
-        let versionLabel = NSTextField(labelWithString: "v\(version)")
+        let versionText: String
+        let versionColor: NSColor
+        if updateAvailable, let newVer = manifestVersion {
+            versionText = "v\(version) → v\(newVer)"
+            versionColor = .systemOrange
+        } else {
+            versionText = "v\(version)"
+            versionColor = .tertiaryLabelColor
+        }
+        let versionLabel = NSTextField(labelWithString: versionText)
         versionLabel.font = .systemFont(ofSize: 10)
-        versionLabel.textColor = .tertiaryLabelColor
+        versionLabel.textColor = versionColor
         versionLabel.translatesAutoresizingMaskIntoConstraints = false
         row.addSubview(versionLabel)
 
@@ -259,8 +282,17 @@ class PackBrowserController: NSObject {
             versionLabel.centerYAnchor.constraint(equalTo: nameLabel.centerYAnchor),
         ])
 
+        // Click to preview (installed packs only)
+        if isInstalled {
+            row.identifier = NSUserInterfaceItemIdentifier(id)
+            let click = NSClickGestureRecognizer(target: self, action: #selector(previewPackSound(_:)))
+            row.addGestureRecognizer(click)
+        }
+
         // Buttons
         if isInstalled {
+            // Top-right: Active badge or Activate button, plus Update button if available
+            var topRightAnchor = row.trailingAnchor
             if isActive {
                 let badge = NSTextField(labelWithString: "Active")
                 badge.font = .systemFont(ofSize: 11, weight: .medium)
@@ -271,6 +303,7 @@ class PackBrowserController: NSObject {
                     badge.trailingAnchor.constraint(equalTo: row.trailingAnchor, constant: -16),
                     badge.topAnchor.constraint(equalTo: row.topAnchor, constant: 12),
                 ])
+                topRightAnchor = badge.leadingAnchor
             } else {
                 let activateBtn = createButton("Activate", id: id, action: #selector(activatePack(_:)))
                 activateBtn.translatesAutoresizingMaskIntoConstraints = false
@@ -278,6 +311,33 @@ class PackBrowserController: NSObject {
                 NSLayoutConstraint.activate([
                     activateBtn.trailingAnchor.constraint(equalTo: row.trailingAnchor, constant: -16),
                     activateBtn.topAnchor.constraint(equalTo: row.topAnchor, constant: 10),
+                ])
+                topRightAnchor = activateBtn.leadingAnchor
+            }
+
+            if updateAvailable, packInfo != nil {
+                let updBtn = createButton("Update", id: id, action: #selector(updatePack(_:)))
+                updBtn.translatesAutoresizingMaskIntoConstraints = false
+                row.addSubview(updBtn)
+                updateButtons[id] = updBtn
+
+                let progress = NSProgressIndicator()
+                progress.style = .bar
+                progress.isIndeterminate = false
+                progress.minValue = 0
+                progress.maxValue = 1
+                progress.doubleValue = 0
+                progress.isHidden = true
+                progress.translatesAutoresizingMaskIntoConstraints = false
+                row.addSubview(progress)
+                updateProgress[id] = progress
+
+                NSLayoutConstraint.activate([
+                    updBtn.trailingAnchor.constraint(equalTo: topRightAnchor, constant: -8),
+                    updBtn.topAnchor.constraint(equalTo: row.topAnchor, constant: 10),
+                    progress.trailingAnchor.constraint(equalTo: topRightAnchor, constant: -8),
+                    progress.topAnchor.constraint(equalTo: updBtn.bottomAnchor, constant: 4),
+                    progress.widthAnchor.constraint(equalToConstant: 100),
                 ])
             }
 
@@ -397,6 +457,32 @@ class PackBrowserController: NSObject {
         })
     }
 
+    @objc func updatePack(_ sender: NSButton) {
+        guard let id = sender.identifier?.rawValue,
+              let pack = manifestPacks.first(where: { $0.id == id }) else { return }
+
+        sender.isEnabled = false
+        sender.title = "Updating..."
+        updateProgress[id]?.isHidden = false
+
+        SoundPackManager.shared.downloadAndInstall(pack: pack, progress: { [weak self] pct in
+            self?.updateProgress[id]?.doubleValue = pct
+        }, completion: { [weak self] success in
+            if success {
+                self?.installedPacks = SoundPackManager.shared.installedPackIds()
+                self?.rebuildUI()
+            } else {
+                sender.isEnabled = true
+                sender.title = "Update"
+                self?.updateProgress[id]?.isHidden = true
+                let alert = NSAlert()
+                alert.messageText = "Update Failed"
+                alert.informativeText = "Could not download or extract the updated sound pack."
+                alert.runModal()
+            }
+        })
+    }
+
     @objc func installFromURL() {
         WindowManager.shared.showInstallURL { [weak self] in
             self?.refresh()
@@ -428,6 +514,41 @@ class PackBrowserController: NSObject {
         WindowManager.shared.showManageRegistries { [weak self] in
             self?.refresh()
         }
+    }
+
+    @objc func previewPackSound(_ sender: NSClickGestureRecognizer) {
+        guard let row = sender.view, let packId = row.identifier?.rawValue else { return }
+        // Don't preview if the click landed on a button
+        let loc = sender.location(in: row)
+        for sub in row.subviews where sub is NSButton {
+            if sub.frame.contains(loc) { return }
+        }
+        playPreview(forPack: packId)
+    }
+
+    private func playPreview(forPack packId: String) {
+        if let proc = previewProcess, proc.isRunning { proc.terminate() }
+
+        let mgr = SoundPackManager.shared
+        let allFiles = ClaudeEvent.allCases.flatMap { mgr.soundFiles(forEvent: $0, inPack: packId) }
+        guard !allFiles.isEmpty else { return }
+        let file = allFiles[Int.random(in: 0..<allFiles.count)]
+
+        // Read current volume
+        let volumeFile = (NSHomeDirectory() as NSString).appendingPathComponent(".claude/sounds/.volume")
+        var volume: Float = 0.5
+        if let str = try? String(contentsOfFile: volumeFile, encoding: .utf8),
+           let val = Float(str.trimmingCharacters(in: .whitespacesAndNewlines)) {
+            volume = max(0, min(1, val))
+        }
+
+        let proc = Process()
+        proc.executableURL = URL(fileURLWithPath: "/usr/bin/afplay")
+        proc.arguments = ["-v", String(format: "%.2f", volume), file]
+        proc.standardOutput = FileHandle.nullDevice
+        proc.standardError = FileHandle.nullDevice
+        try? proc.run()
+        previewProcess = proc
     }
 
     private func addRegistryRow(_ urlStr: String) {

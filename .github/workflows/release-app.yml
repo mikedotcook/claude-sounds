@@ -1,0 +1,49 @@
+name: Release App
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  build-and-release:
+    runs-on: macos-latest
+
+    permissions:
+      contents: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Extract version from tag
+        id: version
+        run: |
+          TAG="${GITHUB_REF#refs/tags/}"
+          VERSION="${TAG#v}"
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+
+      - name: Update Info.plist version
+        run: |
+          /usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString ${{ steps.version.outputs.version }}" Info.plist
+          /usr/libexec/PlistBuddy -c "Set :CFBundleVersion ${{ steps.version.outputs.version }}" Info.plist
+
+      - name: Build
+        run: ./build.sh
+
+      - name: Verify build
+        run: |
+          test -f ClaudeSounds.app/Contents/MacOS/ClaudeSounds
+          /usr/libexec/PlistBuddy -c "Print :CFBundleShortVersionString" ClaudeSounds.app/Contents/Info.plist
+
+      - name: Create ZIP
+        run: zip -r ClaudeSounds.app.zip ClaudeSounds.app
+
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release create "${{ steps.version.outputs.tag }}" \
+            --title "Claude Sounds ${{ steps.version.outputs.tag }}" \
+            --generate-notes \
+            ClaudeSounds.app.zip
