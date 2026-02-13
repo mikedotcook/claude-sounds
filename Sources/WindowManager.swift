@@ -107,6 +107,23 @@ class WindowManager {
         NSApp.activate(ignoringOtherApps: true)
     }
 
+    private var editPackWindow: NSWindow?
+    private var editPackController: EditPackController?
+
+    func showEditPack(packId: String, onSaved: (() -> Void)? = nil) {
+        if let w = editPackWindow, w.isVisible {
+            w.makeKeyAndOrderFront(nil)
+            NSApp.activate(ignoringOtherApps: true)
+            return
+        }
+        let ctrl = EditPackController(packId: packId, onSaved: onSaved)
+        let w = ctrl.window
+        editPackWindow = w
+        editPackController = ctrl
+        w.makeKeyAndOrderFront(nil)
+        NSApp.activate(ignoringOtherApps: true)
+    }
+
     private var soundImporterWindow: NSWindow?
     private var soundImporterController: SoundImporterController?
 

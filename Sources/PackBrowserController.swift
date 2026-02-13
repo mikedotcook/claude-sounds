@@ -134,15 +134,16 @@ class PackBrowserController: NSObject {
         } else {
             for packId in installedPacks {
                 let info = manifestPacks.first { $0.id == packId }
-                let localVersion = SoundPackManager.shared.installedPackVersion(id: packId)
+                let localMeta = SoundPackManager.shared.loadPackMetadata(id: packId)
+                let localVersion = localMeta?["version"]
                 let updateAvailable: Bool = {
                     guard let local = localVersion, let manifest = info?.version else { return false }
                     return local != manifest
                 }()
                 addPackRow(
                     id: packId,
-                    name: info?.name ?? packId.capitalized,
-                    description: info?.description ?? "Locally installed",
+                    name: localMeta?["name"] ?? info?.name ?? packId.capitalized,
+                    description: localMeta?["description"].flatMap({ $0.isEmpty ? nil : $0 }) ?? info?.description ?? "Locally installed",
                     version: localVersion ?? info?.version ?? "—",
                     isInstalled: true,
                     isActive: packId == activePack,
@@ -353,6 +354,12 @@ class PackBrowserController: NSObject {
             bottomButtons.append(previewBtn)
 
             let isLocalOnly = !manifestPacks.contains(where: { $0.id == id })
+
+            let editBtn = createButton("Edit", id: id, action: #selector(editPack(_:)))
+            editBtn.translatesAutoresizingMaskIntoConstraints = false
+            row.addSubview(editBtn)
+            bottomButtons.append(editBtn)
+
             if isLocalOnly {
                 let publishBtn = createButton("Publish", id: id, action: #selector(publishPack(_:)))
                 publishBtn.translatesAutoresizingMaskIntoConstraints = false
@@ -444,6 +451,13 @@ class PackBrowserController: NSObject {
         proc.standardError = FileHandle.nullDevice
         try? proc.run()
         previewProcess = proc
+    }
+
+    @objc func editPack(_ sender: NSButton) {
+        guard let id = sender.identifier?.rawValue else { return }
+        WindowManager.shared.showEditPack(packId: id) { [weak self] in
+            self?.rebuildUI()
+        }
     }
 
     @objc func publishPack(_ sender: NSButton) {

@@ -149,20 +149,38 @@ class SoundPackManager {
     // MARK: - Pack Version Tracking
 
     func savePackMetadata(id: String, version: String) {
-        let packDir = (soundsDir as NSString).appendingPathComponent(id)
-        let metaPath = (packDir as NSString).appendingPathComponent(".pack-info.json")
-        let json: [String: String] = ["version": version]
-        guard let data = try? JSONSerialization.data(withJSONObject: json) else { return }
-        try? data.write(to: URL(fileURLWithPath: metaPath))
+        var existing = loadPackMetadata(id: id) ?? [:]
+        existing["version"] = version
+        writePackMetadata(id: id, metadata: existing)
     }
 
-    func installedPackVersion(id: String) -> String? {
+    func savePackConfig(id: String, name: String, description: String, author: String, version: String) {
+        var meta = loadPackMetadata(id: id) ?? [:]
+        meta["name"] = name
+        meta["description"] = description
+        meta["author"] = author
+        meta["version"] = version
+        writePackMetadata(id: id, metadata: meta)
+    }
+
+    func loadPackMetadata(id: String) -> [String: String]? {
         let metaPath = (soundsDir as NSString).appendingPathComponent("\(id)/.pack-info.json")
         guard let data = FileManager.default.contents(atPath: metaPath),
               let json = try? JSONSerialization.jsonObject(with: data) as? [String: String] else {
             return nil
         }
-        return json["version"]
+        return json
+    }
+
+    func installedPackVersion(id: String) -> String? {
+        return loadPackMetadata(id: id)?["version"]
+    }
+
+    private func writePackMetadata(id: String, metadata: [String: String]) {
+        let packDir = (soundsDir as NSString).appendingPathComponent(id)
+        let metaPath = (packDir as NSString).appendingPathComponent(".pack-info.json")
+        guard let data = try? JSONSerialization.data(withJSONObject: metadata) else { return }
+        try? data.write(to: URL(fileURLWithPath: metaPath))
     }
 
     // MARK: - Install from URL
