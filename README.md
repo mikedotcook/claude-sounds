@@ -1,0 +1,68 @@
+# Claude Sounds
+
+A macOS menu bar app for managing sound packs in [Claude Code](https://docs.anthropic.com/en/docs/claude-code). Plays custom audio cues for Claude Code events like session start, prompt submit, notifications, and more.
+
+## Features
+
+- **Menu bar controls** - Mute/unmute, volume slider, quick pack switching
+- **Sound Pack Browser** - Browse, download, install, and manage sound packs
+- **Event Editor** - Drag-and-drop audio files onto individual events; preview sounds inline
+- **Create Custom Packs** - Built-in wizard to scaffold a new sound pack with all event directories
+- **Setup Wizard** - Guided first-run setup that installs Claude Code hooks automatically
+- **Hook integration** - Installs shell hooks that trigger sounds on Claude Code events
+
+## Supported Events
+
+| Event | Description |
+|---|---|
+| Session Start | Claude Code session begins |
+| Prompt Submit | User submits a prompt |
+| Notification | Claude sends a notification |
+| Stop | Claude stops generating |
+| Session End | Claude Code session ends |
+| Subagent Stop | A subagent finishes |
+| Tool Failure | A tool use fails |
+
+## Audio Formats
+
+Supports `.wav`, `.mp3`, `.aiff`, `.m4a`, `.ogg`, and `.aac` files.
+
+## Installation
+
+### Build from source
+
+```bash
+# Compile
+swiftc -o ClaudeSounds -framework Cocoa ClaudeSounds.swift
+
+# Or build directly into an app bundle
+mkdir -p ClaudeSounds.app/Contents/MacOS
+cp Info.plist ClaudeSounds.app/Contents/
+swiftc -o ClaudeSounds.app/Contents/MacOS/ClaudeMuteToggle -framework Cocoa ClaudeSounds.swift
+
+# Launch
+open ClaudeSounds.app
+```
+
+Requires macOS and Xcode Command Line Tools (`xcode-select --install`).
+
+## Sound Pack Structure
+
+Sound packs live in `~/.claude/sounds/<pack-id>/` with one subdirectory per event:
+
+```
+~/.claude/sounds/my-pack/
+  session-start/
+  prompt-submit/
+  notification/
+  stop/
+  session-end/
+  subagent-stop/
+  tool-failure/
+```
+
+Drop audio files into any event directory. When multiple files exist for an event, one is played at random.
+
+## License
+
+MIT
