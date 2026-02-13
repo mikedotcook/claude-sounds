@@ -56,6 +56,10 @@ jobs:
           ```
           xattr -cr /path/to/ClaudeSounds.app
           ```
+          Or alternatively:
+          ```
+          xattr -d com.apple.quarantine /path/to/ClaudeSounds.app
+          ```
           4. Open the app — it will appear in your menu bar
           EOF
           )" \
