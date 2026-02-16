@@ -69,6 +69,16 @@
       "name" : "Portal II Glados",
       "size" : "4,1 MB",
       "version" : "1.0"
+    },
+    {
+      "author" : "kojndziu",
+      "description" : "",
+      "download_url" : "https:\/\/github.com\/michalarent\/claude-sounds\/releases\/download\/v2.0\/sopranos-pack.zip",
+      "file_count" : 17,
+      "id" : "sopranos-pack",
+      "name" : "Sopranos Pack",
+      "size" : "6,8 MB",
+      "version" : "1.0"
     }
   ],
   "version" : "1"
