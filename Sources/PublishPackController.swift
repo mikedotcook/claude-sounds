@@ -278,12 +278,13 @@ class PublishPackController: NSObject {
 
             // 5b. Upload ZIP to v2.0 release
             self.updateStatus("Uploading ZIP to release...")
-            let uploadResult = self.shell("/usr/bin/env", [
+            let uploadResult = self.shellWithStatus("/usr/bin/env", [
                 "gh", "release", "upload", "v2.0", tmpZip.path,
                 "--repo", "michalarent/claude-sounds", "--clobber"
             ])
-            if uploadResult.contains("error") || uploadResult.contains("release not found") {
-                self.updateStatus("Failed to upload ZIP to release. You may need to upload manually.", error: true)
+            if uploadResult.exitCode != 0 {
+                self.updateStatus("Failed to upload ZIP: \(uploadResult.output.trimmingCharacters(in: .whitespacesAndNewlines)). Ensure `gh` is installed and you have repo access.", error: true)
+                return
             }
 
             self.updateStatus("Updating manifest...")
@@ -372,9 +373,19 @@ class PublishPackController: NSObject {
     }
 
     private func shell(_ executable: String, _ args: [String]) -> String {
+        return shellWithStatus(executable, args).output
+    }
+
+    private func shellWithStatus(_ executable: String, _ args: [String]) -> (output: String, exitCode: Int32) {
         let proc = Process()
         proc.executableURL = URL(fileURLWithPath: executable)
         proc.arguments = args
+        // Include common paths so `gh` is found when launched as a .app
+        var env = ProcessInfo.processInfo.environment
+        let extraPaths = ["/opt/homebrew/bin", "/usr/local/bin", "/usr/bin", "/bin"]
+        let currentPath = env["PATH"] ?? "/usr/bin:/bin"
+        env["PATH"] = (extraPaths + [currentPath]).joined(separator: ":")
+        proc.environment = env
         let pipe = Pipe()
         proc.standardOutput = pipe
         proc.standardError = pipe
@@ -382,10 +393,11 @@ class PublishPackController: NSObject {
             try proc.run()
             proc.waitUntilExit()
         } catch {
-            return ""
+            return ("", 1)
         }
         let data = pipe.fileHandleForReading.readDataToEndOfFile()
-        return String(data: data, encoding: .utf8) ?? ""
+        let output = String(data: data, encoding: .utf8) ?? ""
+        return (output, proc.terminationStatus)
     }
 
     @objc private func doCancel() {
