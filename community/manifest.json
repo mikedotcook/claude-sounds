@@ -69,6 +69,16 @@
       "name" : "Portal II Glados",
       "size" : "4,1 MB",
       "version" : "1.0"
+    },
+    {
+      "author" : "mikedotcook",
+      "description" : "",
+      "download_url" : "https:\/\/github.com\/michalarent\/claude-sounds\/releases\/download\/v2.0\/sopranos.zip",
+      "file_count" : 19,
+      "id" : "sopranos",
+      "name" : "Sopranos",
+      "size" : "6,4 MB",
+      "version" : "1.0"
     }
   ],
   "version" : "1"
